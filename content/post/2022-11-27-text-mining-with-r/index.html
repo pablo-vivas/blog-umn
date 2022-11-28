@@ -13,3 +13,228 @@ tags:
 
 
 
+<div id="chapter-1" class="section level1">
+<h1>Chapter 1</h1>
+<p>As describe <a href="https://www.jstatsoft.org/article/view/v059i10">here</a>, tidy data has a specific structure:</p>
+<ol style="list-style-type: decimal">
+<li>Each variable is a column</li>
+<li>Each observation is a row</li>
+<li>Each type of observational unit is a table</li>
+</ol>
+<p>Tidy text format is <strong>a table with one-token-per-row</strong>.</p>
+<p>A token is a meaningful unit of text, such as a word, that we are interested in using for analysis, and <em>tokenization</em> is the process of splitting text into tokens.</p>
+<pre class="r"><code>text &lt;- c(&quot;Because I could not stop for Death -&quot;,
+          &quot;He kindly stopped for me -&quot;,
+          &quot;The Carriage held but just Ourselves -&quot;,
+          &quot;and Immortality&quot;)</code></pre>
+<pre class="r"><code>library(tidyverse)</code></pre>
+<pre class="r"><code>text_df &lt;- tibble(line = 1:4, text = text) #line is other variable
+text_df</code></pre>
+<pre><code>## # A tibble: 4 × 2
+##    line text                                  
+##   &lt;int&gt; &lt;chr&gt;                                 
+## 1     1 Because I could not stop for Death -  
+## 2     2 He kindly stopped for me -            
+## 3     3 The Carriage held but just Ourselves -
+## 4     4 and Immortality</code></pre>
+<p>Tibbles are great for use with tidy tools. Nonetheless, notice that this data frame containing text isn’t yet compatible with tidy text analysis, though. We can’t filter out words or count which occur most frequently, since each row is made up of multiple combined words. We need to convert this so that it has <strong>one-token-per-document-per-row</strong>.</p>
+<blockquote>
+<p>A token is a meaningful unit of text, most often a word, that we are interested in using for further analysis, and tokenization is the process of splitting text into tokens.</p>
+</blockquote>
+<p>Within our tidy text framework, we need to both break the text into individual tokens (a process called <em>tokenization</em>) and transform it to a tidy data structure. To do this, we use tidytext’s <code>unnest_tokens()</code> function.</p>
+<pre class="r"><code>library(tidytext)
+
+text_df %&gt;%
+  unnest_tokens(word, text)</code></pre>
+<pre><code>## # A tibble: 20 × 2
+##     line word       
+##    &lt;int&gt; &lt;chr&gt;      
+##  1     1 because    
+##  2     1 i          
+##  3     1 could      
+##  4     1 not        
+##  5     1 stop       
+##  6     1 for        
+##  7     1 death      
+##  8     2 he         
+##  9     2 kindly     
+## 10     2 stopped    
+## 11     2 for        
+## 12     2 me         
+## 13     3 the        
+## 14     3 carriage   
+## 15     3 held       
+## 16     3 but        
+## 17     3 just       
+## 18     3 ourselves  
+## 19     4 and        
+## 20     4 immortality</code></pre>
+<p>Both <code>word</code> and <code>text</code> correspond to column names. The former will be the name of the output variable and the latter will be the name of the input variable.</p>
+<pre class="r"><code>library(janeaustenr)
+library(stringr)
+
+original_books &lt;- austen_books() %&gt;%
+  group_by(book) %&gt;%
+  mutate(linenumber = row_number(),
+         chapter = cumsum(str_detect(text, 
+                                     regex(&quot;^chapter [\\divxlc]&quot;,
+                                           ignore_case = TRUE)))) %&gt;%
+  ungroup()</code></pre>
+<pre class="r"><code>tidy_books &lt;- original_books %&gt;%
+  unnest_tokens(word, text)</code></pre>
+<pre class="r"><code>data(stop_words)
+
+tidy_books &lt;- tidy_books %&gt;%
+  anti_join(stop_words)</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;</code></pre>
+<pre class="r"><code>tidy_books %&gt;%
+  group_by(book) %&gt;% 
+  count(word, sort = TRUE) </code></pre>
+<pre><code>## # A tibble: 37,224 × 3
+## # Groups:   book [6]
+##    book                word          n
+##    &lt;fct&gt;               &lt;chr&gt;     &lt;int&gt;
+##  1 Mansfield Park      fanny       816
+##  2 Emma                emma        786
+##  3 Sense &amp; Sensibility elinor      623
+##  4 Emma                miss        599
+##  5 Pride &amp; Prejudice   elizabeth   597
+##  6 Mansfield Park      crawford    493
+##  7 Sense &amp; Sensibility marianne    492
+##  8 Persuasion          anne        447
+##  9 Mansfield Park      miss        432
+## 10 Northanger Abbey    catherine   428
+## # … with 37,214 more rows</code></pre>
+<pre class="r"><code>library(ggplot2)
+
+tidy_books %&gt;%
+  count(word, sort = TRUE) %&gt;%
+  filter(n &gt; 600) %&gt;%
+  mutate(word = reorder(word, n)) %&gt;%
+  ggplot(aes(n, word)) +
+  geom_col(fill = &quot;lightgreen&quot;, color = &quot;lightgreen&quot;) +
+  labs(y = NULL) +
+  theme_bw()</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-9-1.png" width="672" />
+# Chapter 2</p>
+<p>One way to analyze the sentiment of a text is to consider the text as a combination of its individual words and the sentiment content of the whole text as the sum of the sentiment content of the individual words.</p>
+<pre class="r"><code>get_sentiments(&quot;afinn&quot;)</code></pre>
+<pre><code>## # A tibble: 2,477 × 2
+##    word       value
+##    &lt;chr&gt;      &lt;dbl&gt;
+##  1 abandon       -2
+##  2 abandoned     -2
+##  3 abandons      -2
+##  4 abducted      -2
+##  5 abduction     -2
+##  6 abductions    -2
+##  7 abhor         -3
+##  8 abhorred      -3
+##  9 abhorrent     -3
+## 10 abhors        -3
+## # … with 2,467 more rows</code></pre>
+<p>The size of the chunk of text that we use to add up unigram sentiment scores can have an effect on an analysis. A text the size of many paragraphs can often have positive and negative sentiment averaged out to about zero, while sentence-sized or paragraph-sized text often works better.</p>
+<pre class="r"><code>tidy_books &lt;- austen_books() %&gt;%
+  group_by(book) %&gt;%
+  mutate(
+    linenumber = row_number(),
+    chapter = cumsum(str_detect(text, 
+                                regex(&quot;^chapter [\\divxlc]&quot;, 
+                                      ignore_case = TRUE)))) %&gt;%
+  ungroup() %&gt;%
+  unnest_tokens(word, text)</code></pre>
+<pre class="r"><code>nrc_joy &lt;- get_sentiments(&quot;nrc&quot;) %&gt;% 
+  filter(sentiment == &quot;joy&quot;)
+
+tidy_books %&gt;%
+  filter(book == &quot;Emma&quot;) %&gt;%
+  inner_join(nrc_joy) %&gt;%
+  count(word, sort = TRUE)</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;</code></pre>
+<pre><code>## # A tibble: 301 × 2
+##    word          n
+##    &lt;chr&gt;     &lt;int&gt;
+##  1 good        359
+##  2 friend      166
+##  3 hope        143
+##  4 happy       125
+##  5 love        117
+##  6 deal         92
+##  7 found        92
+##  8 present      89
+##  9 kind         82
+## 10 happiness    76
+## # … with 291 more rows</code></pre>
+<pre class="r"><code>library(tidyr)
+
+jane_austen_sentiment &lt;- tidy_books %&gt;%
+  inner_join(get_sentiments(&quot;bing&quot;)) %&gt;%
+  count(book, index = linenumber %/% 80, sentiment) %&gt;%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %&gt;% 
+  mutate(sentiment = positive - negative)</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;</code></pre>
+<pre class="r"><code>ggplot(jane_austen_sentiment, aes(index, sentiment, fill = book)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~book, ncol = 2, scales = &quot;free_x&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-14-1.png" width="672" /></p>
+<pre class="r"><code>pride_prejudice &lt;- tidy_books %&gt;% 
+  filter(book == &quot;Pride &amp; Prejudice&quot;)
+
+afinn &lt;- pride_prejudice %&gt;% 
+  inner_join(get_sentiments(&quot;afinn&quot;)) %&gt;% 
+  group_by(index = linenumber %/% 80) %&gt;% 
+  summarise(sentiment = sum(value)) %&gt;% 
+  mutate(method = &quot;AFINN&quot;)</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;</code></pre>
+<pre class="r"><code>bing_and_nrc &lt;- bind_rows(
+  pride_prejudice %&gt;% 
+    inner_join(get_sentiments(&quot;bing&quot;)) %&gt;%
+    mutate(method = &quot;Bing et al.&quot;),
+  pride_prejudice %&gt;% 
+    inner_join(get_sentiments(&quot;nrc&quot;) %&gt;% 
+                 filter(sentiment %in% c(&quot;positive&quot;, 
+                                         &quot;negative&quot;))
+    ) %&gt;%
+    mutate(method = &quot;NRC&quot;)) %&gt;%
+  count(method, index = linenumber %/% 80, sentiment) %&gt;%
+  pivot_wider(names_from = sentiment,
+              values_from = n,
+              values_fill = 0) %&gt;% 
+  mutate(sentiment = positive - negative)</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;
+## Joining, by = &quot;word&quot;</code></pre>
+<pre class="r"><code>bind_rows(afinn, 
+          bing_and_nrc) %&gt;%
+  ggplot(aes(index, sentiment, fill = method)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~method, ncol = 1, scales = &quot;free_y&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-16-1.png" width="672" /></p>
+<pre class="r"><code>bing_word_counts &lt;- tidy_books %&gt;%
+  inner_join(get_sentiments(&quot;bing&quot;)) %&gt;%
+  count(word, sentiment, sort = TRUE) %&gt;%
+  ungroup()</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;</code></pre>
+<pre class="r"><code>bing_word_counts %&gt;%
+  group_by(sentiment) %&gt;%
+  slice_max(n, n = 10) %&gt;% 
+  ungroup() %&gt;%
+  mutate(word = reorder(word, n)) %&gt;%
+  ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = &quot;free_y&quot;) +
+  labs(x = &quot;Contribution to sentiment&quot;,
+       y = NULL)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-18-1.png" width="672" /></p>
+<pre class="r"><code>custom_stop_words &lt;- bind_rows(tibble(word = c(&quot;miss&quot;),  
+                                      lexicon = c(&quot;custom&quot;)), 
+                               stop_words)</code></pre>
+<pre class="r"><code>library(wordcloud)</code></pre>
+<pre><code>## Warning: package &#39;wordcloud&#39; was built under R version 4.2.2</code></pre>
+<pre><code>## Loading required package: RColorBrewer</code></pre>
+<pre class="r"><code>tidy_books %&gt;%
+  anti_join(stop_words) %&gt;%
+  count(word) %&gt;%
+  with(wordcloud(word, n, max.words = 100))</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-20-1.png" width="672" /></p>
+</div>
