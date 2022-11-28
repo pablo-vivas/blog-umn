@@ -1,0 +1,12 @@
+---
+title: Text Mining with R
+author: Pablo Vivas
+date: '2022-11-27'
+slug: text-mining-with-r
+categories:
+  - R
+tags:
+  - Bookdown
+  - Review
+  - Book
+---
